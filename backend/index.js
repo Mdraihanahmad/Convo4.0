@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import connectDB from "./config/database.js";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 import userRoute from "./routes/userRoute.js";
 import messageRoute from "./routes/messageRoute.js";
 import statusRoute from "./routes/statusRoute.js";
@@ -34,14 +35,18 @@ app.use("/api/v1/message",messageRoute);
 app.use("/api/v1/status", statusRoute);
 
 // ------------- code for deployment -----------------
-if(process.env.NODE_ENV === "production"){
+{
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const publicPath = path.join(__dirname, "public");
-    app.use(express.static(publicPath));
-    app.get("*",(req,res)=>{
-        res.sendFile(path.join(publicPath, "index.html"));
-    });
+    const indexHtml = path.join(publicPath, "index.html");
+    const shouldServeStatic = process.env.NODE_ENV === "production" || fs.existsSync(indexHtml);
+    if (shouldServeStatic) {
+        app.use(express.static(publicPath));
+        app.get("*", (req, res) => {
+            res.sendFile(indexHtml);
+        });
+    }
 }
  
 
