@@ -6,7 +6,7 @@ services:
     plan: free
     buildCommand: |
       npm install
-      cd frontend && npm install && npm run build
+      cd frontend && npm install --include=dev && npm run build
       cd ..
       rm -rf public && mkdir -p public
       cp -r frontend/build/* public/
