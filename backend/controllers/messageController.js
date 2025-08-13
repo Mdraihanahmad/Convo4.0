@@ -2,6 +2,7 @@ import { Conversation } from "../models/conversationModel.js";
 import { Message } from "../models/messageModel.js";
 import { getReceiverSocketId, io } from "../socket/socket.js";
 import path from 'path';
+import cloudinary, { configureCloudinary, isCloudinaryConfigured } from "../utils/cloudinary.js";
 
 export const sendMessage = async (req,res) => {
     try {
@@ -30,12 +31,31 @@ export const sendMessage = async (req,res) => {
                 participants:[senderId, receiverId]
             })
         };
-        const attachments = files.map(f => ({
-            url: `/uploads/${path.basename(f.path)}`,
-            type: f.mimetype,
-            name: f.originalname,
-            size: f.size,
-        }));
+        let attachments = [];
+        if (files.length) {
+            if (isCloudinaryConfigured()) {
+                configureCloudinary();
+                const uploads = await Promise.all(
+                    files.map(f => cloudinary.uploader.upload(f.path, {
+                        folder: "convo3/attachments",
+                        resource_type: "auto"
+                    }))
+                );
+                attachments = uploads.map((u, idx) => ({
+                    url: u.secure_url,
+                    type: files[idx].mimetype,
+                    name: files[idx].originalname,
+                    size: files[idx].size,
+                }));
+            } else {
+                attachments = files.map(f => ({
+                    url: `/uploads/${path.basename(f.path)}`,
+                    type: f.mimetype,
+                    name: f.originalname,
+                    size: f.size,
+                }));
+            }
+        }
 
         // Parse replyPreview if sent as JSON string via multipart
         if (typeof replyPreview === 'string') {
