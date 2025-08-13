@@ -41,6 +41,11 @@ app.use("/api/v1/status", statusRoute);
     const publicPath = path.join(__dirname, "public");
     const indexHtml = path.join(publicPath, "index.html");
     const shouldServeStatic = process.env.NODE_ENV === "production" || fs.existsSync(indexHtml);
+    console.log("Static serving check:", {
+        shouldServeStatic,
+        indexHtmlExists: fs.existsSync(indexHtml),
+        publicPath
+    });
     if (shouldServeStatic) {
         app.use(express.static(publicPath));
         app.get("*", (req, res) => {
