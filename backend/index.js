@@ -39,17 +39,23 @@ app.use("/api/v1/status", statusRoute);
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const publicPath = path.join(__dirname, "public");
-    const indexHtml = path.join(publicPath, "index.html");
-    const shouldServeStatic = process.env.NODE_ENV === "production" || fs.existsSync(indexHtml);
+    const buildPath = path.join(__dirname, "frontend", "build");
+    const publicIndex = path.join(publicPath, "index.html");
+    const buildIndex = path.join(buildPath, "index.html");
+    const preferPublic = fs.existsSync(publicIndex);
+    const preferBuild = !preferPublic && fs.existsSync(buildIndex);
+    const shouldServeStatic = process.env.NODE_ENV === "production" || preferPublic || preferBuild;
+    const servePath = preferPublic ? publicPath : (preferBuild ? buildPath : null);
     console.log("Static serving check:", {
         shouldServeStatic,
-        indexHtmlExists: fs.existsSync(indexHtml),
-        publicPath
+        preferPublic,
+        preferBuild,
+        servePath
     });
-    if (shouldServeStatic) {
-        app.use(express.static(publicPath));
+    if (shouldServeStatic && servePath) {
+        app.use(express.static(servePath));
         app.get("*", (req, res) => {
-            res.sendFile(indexHtml);
+            res.sendFile(path.join(servePath, "index.html"));
         });
     }
 }
