@@ -7,11 +7,9 @@ const userSlice = createSlice({
         otherUsers:null,
         selectedUser:null,
         onlineUsers:null,
-        busyUsers:[],
         notificationSettings: {
             message: true,
             status: true,
-            call: true,
             sound: true,
             mutedChats: []
         },
@@ -33,9 +31,7 @@ const userSlice = createSlice({
         setOnlineUsers:(state,action)=>{
             state.onlineUsers = action.payload;
         },
-        setBusyUsers:(state,action)=>{
-            state.busyUsers = action.payload || [];
-        },
+
         setNotificationSettings:(state, action)=>{
             state.notificationSettings = { ...state.notificationSettings, ...(action.payload || {}) };
         },
@@ -126,7 +122,6 @@ export const {
     setOtherUsers,
     setSelectedUser,
     setOnlineUsers,
-    setBusyUsers,
     setNotificationSettings,
     incrementUnread,
     clearUnread,

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import {useSelector, useDispatch} from "react-redux";
-import { setMessages, applyEditedMessage } from "../redux/messageSlice";
+import { addMessage, applyEditedMessage } from "../redux/messageSlice";
 import { incrementUnread } from "../redux/userSlice";
 import toast from "react-hot-toast";
 
@@ -10,10 +10,11 @@ const useGetRealTimeMessage = () => {
     useEffect(()=>{
         if(!socket) return;
         const handler = (newMessage) => {
-            const state = window.__APP_STORE__?.getState?.() || {};
-            const currentMessages = state?.message?.messages || [];
-            dispatch(setMessages([...(currentMessages), newMessage]));
+            // Use addMessage action which handles duplicate prevention
+            dispatch(addMessage(newMessage));
+            
             // Notification toast if chat not active
+            const state = window.__APP_STORE__?.getState?.() || {};
             const userState = state?.user || {};
             const selectedUser = userState.selectedUser;
             const rawSettings = userState.notificationSettings || {};

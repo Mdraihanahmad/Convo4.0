@@ -2,16 +2,11 @@ import React, { useState, useEffect, useRef } from 'react'
 import SendInput from './SendInput'
 import Messages from './Messages';
 import { useSelector, useDispatch } from "react-redux";
-import { setSelectedUser, addSentFriendRequest, setBusyUsers } from '../redux/userSlice';
+import { setSelectedUser, addSentFriendRequest } from '../redux/userSlice';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { BASE_URL } from '..';
 import useGetFriendRequests from '../hooks/useGetFriendRequests';
-import VideoCallButton from './VideoCallButton';
-import AudioCallButton from './AudioCallButton';
-import IncomingCallModal from './IncomingCallModal';
-import VideoCallWindow from './VideoCallWindow';
-import AudioCallWindow from './AudioCallWindow';
 import { getImageUrl } from '../utils/image';
  
 
@@ -228,145 +223,6 @@ const MessageContainer = () => {
         }
     };
 
-    // Video call state
-    const [incomingCall, setIncomingCall] = useState(null); // { from, offer, caller, type }
-    const [callOpen, setCallOpen] = useState(false);
-    const [outgoingOffer, setOutgoingOffer] = useState(null);
-    const [activeCallType, setActiveCallType] = useState('video'); // 'video' | 'audio'
-
-    // Outgoing ringback tone (caller side)
-    const rbAudioCtxRef = useRef(null);
-    const rbOscRef = useRef(null);
-    const rbGainRef = useRef(null);
-    const rbIntervalRef = useRef(null);
-
-    const stopRingback = () => {
-        if (rbIntervalRef.current) {
-            clearInterval(rbIntervalRef.current);
-            rbIntervalRef.current = null;
-        }
-        try { rbGainRef.current && (rbGainRef.current.gain.value = 0); } catch {}
-        try { rbOscRef.current && rbOscRef.current.stop(0); } catch {}
-        try { rbAudioCtxRef.current && rbAudioCtxRef.current.close(); } catch {}
-        rbOscRef.current = null;
-        rbGainRef.current = null;
-        rbAudioCtxRef.current = null;
-    };
-
-    const startRingback = () => {
-        stopRingback();
-        try {
-            const Ctx = window.AudioContext || window.webkitAudioContext;
-            if (!Ctx) return;
-            const ctx = new Ctx();
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            // Classic US ringback approx: alternating 440Hz/480Hz bursts
-            osc.type = 'sine';
-            let toggle = false;
-            osc.frequency.value = 440;
-            gain.gain.value = 0;
-            osc.connect(gain).connect(ctx.destination);
-            osc.start();
-            rbIntervalRef.current = setInterval(() => {
-                toggle = !toggle;
-                osc.frequency.setTargetAtTime(toggle ? 480 : 440, ctx.currentTime, 0.01);
-                gain.gain.setTargetAtTime(toggle ? 0.2 : 0.0, ctx.currentTime, 0.01);
-            }, 500);
-            rbAudioCtxRef.current = ctx;
-            rbOscRef.current = osc;
-            rbGainRef.current = gain;
-        } catch {}
-    };
-
-    useEffect(() => {
-        if (!socket) return;
-        const onIncoming = ({ from, offer, caller, type = 'video' }) => {
-            setIncomingCall({ from, offer, caller, type });
-        };
-        const onUnavailable = () => { stopRingback(); toast.error('User unavailable'); };
-        const onBusy = () => { stopRingback(); toast.error('User is on another call'); };
-        const onEnded = () => {
-            setCallOpen(false);
-            setIncomingCall(null);
-            setOutgoingOffer(null);
-            setActiveCallType('video');
-            stopRingback();
-            // no client-side log emit; server emits single log on call:end with dedupe
-        };
-        const onAnswered = () => { stopRingback(); };
-        socket.on('call:incoming', onIncoming);
-        socket.on('call:unavailable', onUnavailable);
-        socket.on('call:busy', onBusy);
-        socket.on('call:ended', onEnded);
-        socket.on('call:answer', onAnswered);
-        socket.on('users:busy', (arr) => dispatch(setBusyUsers(arr)));
-        return () => {
-            socket.off('call:incoming', onIncoming);
-            socket.off('call:unavailable', onUnavailable);
-            socket.off('call:busy', onBusy);
-            socket.off('call:ended', onEnded);
-            socket.off('call:answer', onAnswered);
-            socket.off('users:busy');
-        };
-    }, [socket]);
-
-    const startCall = async () => {
-        if (!socket || !selectedUser?._id) return;
-        try {
-            // Create peer and offer handled in VideoCallWindow (callee path). Here we only signal intent.
-            const pc = new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }] });
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            stream.getTracks().forEach(t => pc.addTrack(t, stream));
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            setOutgoingOffer(offer);
-            setCallOpen(true);
-            setActiveCallType('video');
-            socket.emit('call:offer', { to: selectedUser._id, offer, caller: { id: authUser._id, name: authUser.fullName }, callType: 'video' });
-            pc.close();
-            startRingback();
-        } catch (e) {
-            console.log(e);
-            toast.error('Failed to start call');
-        }
-    };
-
-    const startAudioCall = async () => {
-        if (!socket || !selectedUser?._id) return;
-        try {
-            const pc = new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }] });
-            const stream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-            stream.getTracks().forEach(t => pc.addTrack(t, stream));
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-            setOutgoingOffer(offer);
-            setActiveCallType('audio');
-            setCallOpen(true);
-            socket.emit('call:offer', { to: selectedUser._id, offer, caller: { id: authUser._id, name: authUser.fullName }, callType: 'audio' });
-            pc.close();
-            startRingback();
-        } catch (e) {
-            console.log(e);
-            toast.error('Failed to start audio call');
-        }
-    };
-
-    const acceptIncoming = () => {
-        setActiveCallType(incomingCall?.type || 'video');
-        setCallOpen(true);
-        // Close the modal immediately so ringtone (if any) is fully stopped
-        setIncomingCall(null);
-    };
-
-    const declineIncoming = () => {
-        const to = incomingCall?.from;
-        socket?.emit('call:end', { to, callType: incomingCall?.type || 'video' });
-        setIncomingCall(null);
-    };
-
-    useEffect(() => () => { stopRingback(); }, []);
-
     return (
         <div className='h-screen md:h-full w-full fixed md:relative left-0 top-0 md:inset-auto flex flex-col bg-gray-800 rounded-lg'>
             {selectedUser !== null ? (
@@ -403,8 +259,6 @@ const MessageContainer = () => {
                             </p>
                         </div>
                         <div className="ml-1 sm:ml-2 flex-shrink-0 flex items-center gap-2">
-                            <AudioCallButton onClick={startAudioCall} />
-                            <VideoCallButton onClick={startCall} />
                             {renderFriendshipButtons()}
                         </div>
                     </header>
@@ -422,41 +276,6 @@ const MessageContainer = () => {
                     <footer className='flex-none w-full sticky bottom-0 z-50'>
                         <SendInput />
                     </footer>
-
-                    {/* Incoming call modal */}
-                    <IncomingCallModal
-                        isOpen={!!incomingCall}
-                        caller={{ name: incomingCall?.caller?.name || selectedUser?.fullName, avatar: selectedUser?.profilePhoto }}
-                        onAccept={acceptIncoming}
-                        onDecline={declineIncoming}
-                    />
-
-                    {/* Call Windows */}
-                    {activeCallType === 'video' ? (
-                        <VideoCallWindow
-                            isOpen={callOpen}
-                            onClose={() => setCallOpen(false)}
-                            localUser={authUser}
-                            remoteUser={selectedUser}
-                            socket={socket}
-                            currentUserId={authUser?._id}
-                            remoteUserId={incomingCall?.from || selectedUser?._id}
-                            isCaller={!!incomingCall}
-                            outgoingOffer={incomingCall?.offer || outgoingOffer}
-                        />
-                    ) : (
-                        <AudioCallWindow
-                            isOpen={callOpen}
-                            onClose={() => setCallOpen(false)}
-                            localUser={authUser}
-                            remoteUser={selectedUser}
-                            socket={socket}
-                            currentUserId={authUser?._id}
-                            remoteUserId={incomingCall?.from || selectedUser?._id}
-                            isCaller={!!incomingCall}
-                            outgoingOffer={incomingCall?.offer || outgoingOffer}
-                        />
-                    )}
                 </>
             ) : (
                 <div className='h-full flex flex-col justify-center items-center bg-gray-800 text-white p-4'>

@@ -49,18 +49,4 @@ const messageModel = new mongoose.Schema(
   { timestamps: true }
 );
 
-const callSystemSchema = new mongoose.Schema(
-  {
-    type: { type: String, enum: ['call'], default: 'call' },
-    callType: { type: String, enum: ['audio', 'video'], required: false },
-    durationSec: { type: Number, default: 0 },
-    direction: { type: String, enum: ['incoming', 'outgoing'], required: false },
-    accepted: { type: Boolean, default: false }
-  },
-  { _id: false }
-);
-
-messageModel.add({
-  system: { type: callSystemSchema, required: false }
-});
 export const Message = mongoose.model("Message", messageModel);

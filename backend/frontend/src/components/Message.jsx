@@ -79,20 +79,7 @@ const ImageThumb = ({ src, alt }) => {
         ? formatDistanceToNow(new Date(message.createdAt), { addSuffix: true })
         : '';
 
-    // Render call system message
-    if (message?.system?.type === 'call') {
-        const callType = message.system.callType;
-        const accepted = message.system.accepted;
-        const duration = message.system.durationSec;
-        const icon = callType === 'audio' ? '📞' : '🎥';
-        const label = accepted ? `Call ended • ${Math.floor(duration/60)}:${String(duration%60).padStart(2,'0')}` : 'Missed call';
-        // collapse consecutive duplicate missed-call banners while rendering
-        return (
-            <div className='flex justify-center my-2'>
-                <div className='text-xs px-2 py-1 bg-gray-700 text-white rounded-full'>{icon} {label}</div>
-            </div>
-        );
-    }
+
 
     return (
         <div

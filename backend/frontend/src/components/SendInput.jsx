@@ -6,7 +6,7 @@ import FilePreviewList from './FilePreviewList';
 import EmojiPicker from './EmojiPicker';
 import axios from "axios";
 import {useDispatch,useSelector} from "react-redux";
-import { setMessages, cancelEditing, applyEditedMessage, setReplyContext } from '../redux/messageSlice';
+import { addMessage, cancelEditing, applyEditedMessage, setReplyContext } from '../redux/messageSlice';
 import toast from 'react-hot-toast';
 import { BASE_URL } from '..';
 
@@ -67,7 +67,7 @@ const SendInput = () => {
                     withCredentials: true
                 });
                 if (res?.data?.newMessage) {
-                    dispatch(setMessages([...(messages || []), res.data.newMessage]))
+                    dispatch(addMessage(res.data.newMessage))
                 }
                 if (socket) socket.emit('stopTyping', { receiverId: selectedUser._id });
             }
