@@ -123,10 +123,14 @@ For queries or support, reach out to:
 Developer: Md Raihan Ahmad
 Email: mdraihanahmad47@gmail.com
 
+🏠 signup <br>
+![sign up](./backend/frontend/screenshots/signup.png)
+<br>
 🏠 LOGIN page<br>
-![Home Screen](screenshot/screenshot1.png)
+![login page](./backend/frontend/screenshots/login.png)
 <br>
-![Home Screen](screenshot/screenshot1.png)
+🏠 HOME page<br>
+![Home Screen](./backend/frontend/screenshots/homepage.png)
 <br>
-![Home Screen](screenshot/screenshot1.png)
-<br>
+🏠 chatting page<br>
+![chatting page](./backend/frontend/screenshots/chatting.png)
